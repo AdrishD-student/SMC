@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SMC</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #f0f2f5;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+  }
+
+  .container {
+    background: #f9faf7;
+    padding: 25px;
+    border-radius: 15px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    width: 420px;
+    text-align: center;
+    border: 2px solid #a3b18a;
+  }
+
+  h2 {
+    color: #556b2f;
+    margin-bottom: 15px;
+  }
+
+  textarea {
+    width: 100%;
+    height: 70px;
+    padding: 12px;
+    margin: 12px 0;
+    border: 1px solid #c0d6a1;
+    border-radius: 8px;
+    resize: none;
+    background: #f4f6e8;
+    color: #2f4f2f;
+    font-size: 15px;
+  }
+
+  .password-box input {
+    flex: 1;
+    padding: 12px;
+    border: 1px solid #c0d6a1;
+    border-radius: 8px 0 0 8px;
+    background: #f4f6e8;
+    color: #2f4f2f;
+  }
+
+  .toggle-password {
+    padding: 12px;
+    border: 1px solid #c0d6a1;
+    border-left: none;
+    border-radius: 0 8px 8px 0;
+    background: #d9e4c3;
+    cursor: pointer;
+    font-size: 16px;
+    color: #2f4f2f;
+  }
+
+  .password-error {
+    color: #b22222;
+    font-size: 0.9em;
+    margin-top: 4px;
+    min-height: 18px;
+  }
+
+  button {
+    padding: 12px 22px;
+    margin: 5px;
+    border: none;
+    border-radius: 8px;
+    background: #8fbc8f;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
+  }
+
+  button:hover {
+    background: #6b8e23;
+  }
+
+  .output-box {
+    margin-top: 15px;
+    padding: 12px;
+    border: 1px solid #c0d6a1;
+    border-radius: 8px;
+    min-height: 60px;
+    max-height: 130px;
+    overflow-y: auto;
+    background: #f4f6e8;
+    text-align: left;
+    word-wrap: break-word;
+    color: #2f4f2f;
+  }
+
+  .copy-container {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .copy-tick {
+    color: #228b22;
+    font-size: 1.2em;
+    display: none;
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+</head>
+<body>
+<div class="container">
+  <h2>SMC</h2>
+  <textarea id="inputText" placeholder="Enter your message or Message ID here."></textarea>
+  <div class="password-box">
+    <input type="password" id="password" placeholder="Enter password">
+    <span class="toggle-password" onclick="togglePassword()">👁</span>
+  </div>
+  <div id="passwordError" class="password-error"></div>
+  <div>
+    <button onclick="encodeMessage()">Encode</button>
+    <button onclick="decodeMessage()">Decode</button>
+  </div>
+  <div class="output-box" id="outputText"></div>
+  <div class="copy-container">
+    <button onclick="copyOutput()">Copy Output</button>
+    <span id="copyTick" class="copy-tick">✔</span>
+  </div>
+</div>
+
+<script>
+function togglePassword() {
+  const passField = document.getElementById("password");
+  passField.type = passField.type === "password" ? "text" : "password";
+}
+
+function encodeMessage() {
+  const message = document.getElementById("inputText").value;
+  const password = document.getElementById("password").value;
+  const errorDiv = document.getElementById("passwordError");
+  errorDiv.textContent = "";
+
+  if (!message) { errorDiv.textContent = "Please enter a message!"; return; }
+  if (!password) { errorDiv.textContent = "Please enter a password!"; return; }
+
+  // Encrypt message using AES
+  const ciphertext = CryptoJS.AES.encrypt(message, password).toString();
+
+  // Generate a unique ID for this message
+  const messageId = 'm_'+Date.now() + '_' + Math.floor(Math.random()*1000);
+
+  // Save encrypted message in localStorage
+  localStorage.setItem(messageId, ciphertext);
+
+  // Show only the Message ID
+  document.getElementById("outputText").innerText = messageId;
+}
+
+function decodeMessage() {
+  const input = document.getElementById("inputText").value.trim();
+  const password = document.getElementById("password").value;
+  const errorDiv = document.getElementById("passwordError");
+  errorDiv.textContent = "";
+
+  if (!input) { errorDiv.textContent = "Please enter your Message ID!"; return; }
+  if (!password) { errorDiv.textContent = "Please enter a password!"; return; }
+
+  const messageId = input;
+
+  const storedCipher = localStorage.getItem(messageId);
+  if (!storedCipher) {
+    errorDiv.textContent = "No message found with this ID!";
+    document.getElementById("outputText").innerText = "";
+    return;
+  }
+
+  try {
+    const bytes  = CryptoJS.AES.decrypt(storedCipher, password);
+    const originalText = bytes.toString(CryptoJS.enc.Utf8);
+    if (!originalText) throw new Error();
+    document.getElementById("outputText").innerText = originalText;
+  } catch {
+    errorDiv.textContent = "Incorrect password!";
+    document.getElementById("outputText").innerText = "";
+  }
+}
+
+function copyOutput() {
+  const outputText = document.getElementById("outputText").innerText;
+  if (!outputText) return;
+  navigator.clipboard.writeText(outputText).then(() => {
+    const tick = document.getElementById("copyTick");
+    tick.style.display = "inline";
+    setTimeout(() => { tick.style.display = "none"; }, 1000);
+  });
+}
+</script>
+</body>
+</html>
